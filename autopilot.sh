@@ -8,6 +8,7 @@ FAIL_SLEEP_SECONDS="${FAIL_SLEEP_SECONDS:-$SLEEP_SECONDS}"
 MAX_FAILURES="${MAX_FAILURES:-0}"
 LOG_FILE="${LOG_FILE:-autopilot.log}"
 GROWTH_SCRIPT="${GROWTH_SCRIPT:-./growth.sh}"
+EVOLVE_SCRIPT="${EVOLVE_SCRIPT:-./self_evolve.sh}"
 STOP_FILE="${STOP_FILE:-.autopilot.stop}"
 LOCK_DIR="${LOCK_DIR:-.autopilot.lock.d}"
 
@@ -35,10 +36,18 @@ while :; do
   ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   if out="$(bash "$GROWTH_SCRIPT" 2>&1)"; then
     failures=0
-    printf '%s cycle=%s status=ok output=%s\n' "$ts" "$cycles" "$out" | tee -a "$LOG_FILE"
+    evolve_status="skip"
+    if [[ -n "$EVOLVE_SCRIPT" ]]; then
+      if bash "$EVOLVE_SCRIPT" >/dev/null 2>&1; then
+        evolve_status="ok"
+      else
+        evolve_status="fail"
+      fi
+    fi
+    printf '%s cycle=%s status=ok evolve=%s output=%s\n' "$ts" "$cycles" "$evolve_status" "$out" | tee -a "$LOG_FILE"
   else
     failures=$((failures + 1))
-    printf '%s cycle=%s status=fail failure=%s output=%s\n' "$ts" "$cycles" "$failures" "$out" | tee -a "$LOG_FILE"
+    printf '%s cycle=%s status=fail evolve=skip failure=%s output=%s\n' "$ts" "$cycles" "$failures" "$out" | tee -a "$LOG_FILE"
     if [[ "$MAX_FAILURES" -gt 0 && "$failures" -ge "$MAX_FAILURES" ]]; then
       echo "max failures reached: $failures" >&2
       exit 1

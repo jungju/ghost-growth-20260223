@@ -23,8 +23,23 @@ bash autopilot.sh
 - `STOP_FILE` (default: `.autopilot.stop`): create file to stop loop gracefully
 - `LOCK_DIR` (default: `.autopilot.lock.d`): prevents duplicate autopilot process
 - `GROWTH_SCRIPT` (default: `./growth.sh`): growth command target script
+- `EVOLVE_SCRIPT` (default: `./self_evolve.sh`): post-success self-evolution script
+- `SELF_EVOLVE_REPORT` (default: `./self-evolve.md`): markdown report path used by `self_evolve.sh`
 - `MAX_FAILURES` (default: `0`): consecutive failure limit (`0` means unlimited retries)
 - `FAIL_SLEEP_SECONDS` (default: `SLEEP_SECONDS`): wait after failed cycle
+
+## Self Evolution
+```bash
+bash self_evolve.sh
+cat self-evolve.md
+```
+
+The script records:
+- retrospective (3 points)
+- technical debt scan (duplicates / conditionals / circular ref / layers)
+- structure scores (simplicity, cohesion, coupling, testability, extensibility)
+- improvement proposals for low-score items
+- automation-oriented evolution questions
 
 ## Test
 ```bash

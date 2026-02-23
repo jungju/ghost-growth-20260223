@@ -8,15 +8,32 @@ if [[ "${out}" != "build-small-public-artifacts" ]]; then
 fi
 
 rm -f ./autopilot.log
-MAX_CYCLES=2 SLEEP_SECONDS=0 bash ./autopilot.sh > /tmp/autopilot.out
+rm -f /tmp/self-evolve-test.md
+MAX_CYCLES=2 SLEEP_SECONDS=0 SELF_EVOLVE_REPORT=/tmp/self-evolve-test.md bash ./autopilot.sh > /tmp/autopilot.out
 cycles="$(wc -l < /tmp/autopilot.out | tr -d ' ')"
 if [[ "${cycles}" != "2" ]]; then
   echo "unexpected cycle lines: ${cycles}" >&2
   exit 1
 fi
+if ! rg -q "evolve=ok" /tmp/autopilot.out; then
+  echo "expected evolve=ok in autopilot output" >&2
+  exit 1
+fi
 
 if [[ ! -f ./autopilot.log ]]; then
   echo "autopilot log file missing" >&2
+  exit 1
+fi
+if [[ ! -f /tmp/self-evolve-test.md ]]; then
+  echo "self evolve report missing" >&2
+  exit 1
+fi
+if ! rg -q "### Retrospective" /tmp/self-evolve-test.md; then
+  echo "self evolve retrospective missing" >&2
+  exit 1
+fi
+if ! rg -q "### Structure Scores" /tmp/self-evolve-test.md; then
+  echo "self evolve score section missing" >&2
   exit 1
 fi
 
@@ -40,12 +57,12 @@ echo "recovered"
 EOF
 chmod +x /tmp/flaky-growth.sh
 rm -f /tmp/flaky-growth.once
-LOG_FILE=./autopilot-flaky.log MAX_CYCLES=2 SLEEP_SECONDS=0 FAIL_SLEEP_SECONDS=0 GROWTH_SCRIPT=/tmp/flaky-growth.sh bash ./autopilot.sh > /tmp/autopilot.flaky.out
+LOG_FILE=./autopilot-flaky.log MAX_CYCLES=2 SLEEP_SECONDS=0 FAIL_SLEEP_SECONDS=0 GROWTH_SCRIPT=/tmp/flaky-growth.sh SELF_EVOLVE_REPORT=/tmp/self-evolve-flaky.md bash ./autopilot.sh > /tmp/autopilot.flaky.out
 if ! rg -q "status=fail" /tmp/autopilot.flaky.out; then
   echo "expected at least one failure cycle" >&2
   exit 1
 fi
-if ! rg -q "status=ok output=recovered" /tmp/autopilot.flaky.out; then
+if ! rg -q "status=ok evolve=ok output=recovered" /tmp/autopilot.flaky.out; then
   echo "expected recovered success cycle" >&2
   exit 1
 fi
@@ -57,7 +74,7 @@ echo "hard error" >&2
 exit 1
 EOF
 chmod +x /tmp/always-fail-growth.sh
-if LOG_FILE=./autopilot-hardfail.log MAX_CYCLES=2 SLEEP_SECONDS=0 FAIL_SLEEP_SECONDS=0 MAX_FAILURES=1 GROWTH_SCRIPT=/tmp/always-fail-growth.sh bash ./autopilot.sh > /tmp/autopilot.hardfail.out 2>/tmp/autopilot.hardfail.err; then
+if LOG_FILE=./autopilot-hardfail.log MAX_CYCLES=2 SLEEP_SECONDS=0 FAIL_SLEEP_SECONDS=0 MAX_FAILURES=1 GROWTH_SCRIPT=/tmp/always-fail-growth.sh SELF_EVOLVE_REPORT=/tmp/self-evolve-hardfail.md bash ./autopilot.sh > /tmp/autopilot.hardfail.out 2>/tmp/autopilot.hardfail.err; then
   echo "expected autopilot hard failure exit" >&2
   exit 1
 fi
