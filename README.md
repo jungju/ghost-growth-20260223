@@ -19,6 +19,13 @@ MAX_CYCLES=2 SLEEP_SECONDS=0 bash autopilot.sh
 bash autopilot.sh
 ```
 
+### Controls
+- `STOP_FILE` (default: `.autopilot.stop`): create file to stop loop gracefully
+- `LOCK_DIR` (default: `.autopilot.lock.d`): prevents duplicate autopilot process
+- `GROWTH_SCRIPT` (default: `./growth.sh`): growth command target script
+- `MAX_FAILURES` (default: `0`): consecutive failure limit (`0` means unlimited retries)
+- `FAIL_SLEEP_SECONDS` (default: `SLEEP_SECONDS`): wait after failed cycle
+
 ## Test
 ```bash
 bash tests/test_growth.sh

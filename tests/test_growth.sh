@@ -20,4 +20,50 @@ if [[ ! -f ./autopilot.log ]]; then
   exit 1
 fi
 
+touch ./.autopilot.stop.test
+STOP_FILE=./.autopilot.stop.test LOG_FILE=./autopilot-stop.log bash ./autopilot.sh > /tmp/autopilot.stop.out
+rm -f ./.autopilot.stop.test
+if ! rg -q "status=stopped reason=stop-file" /tmp/autopilot.stop.out; then
+  echo "missing stop-file status output" >&2
+  exit 1
+fi
+
+cat > /tmp/flaky-growth.sh << 'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ ! -f /tmp/flaky-growth.once ]]; then
+  touch /tmp/flaky-growth.once
+  echo "transient error" >&2
+  exit 1
+fi
+echo "recovered"
+EOF
+chmod +x /tmp/flaky-growth.sh
+rm -f /tmp/flaky-growth.once
+LOG_FILE=./autopilot-flaky.log MAX_CYCLES=2 SLEEP_SECONDS=0 FAIL_SLEEP_SECONDS=0 GROWTH_SCRIPT=/tmp/flaky-growth.sh bash ./autopilot.sh > /tmp/autopilot.flaky.out
+if ! rg -q "status=fail" /tmp/autopilot.flaky.out; then
+  echo "expected at least one failure cycle" >&2
+  exit 1
+fi
+if ! rg -q "status=ok output=recovered" /tmp/autopilot.flaky.out; then
+  echo "expected recovered success cycle" >&2
+  exit 1
+fi
+
+cat > /tmp/always-fail-growth.sh << 'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+echo "hard error" >&2
+exit 1
+EOF
+chmod +x /tmp/always-fail-growth.sh
+if LOG_FILE=./autopilot-hardfail.log MAX_CYCLES=2 SLEEP_SECONDS=0 FAIL_SLEEP_SECONDS=0 MAX_FAILURES=1 GROWTH_SCRIPT=/tmp/always-fail-growth.sh bash ./autopilot.sh > /tmp/autopilot.hardfail.out 2>/tmp/autopilot.hardfail.err; then
+  echo "expected autopilot hard failure exit" >&2
+  exit 1
+fi
+if ! rg -q "max failures reached: 1" /tmp/autopilot.hardfail.err; then
+  echo "missing max failure error message" >&2
+  exit 1
+fi
+
 echo "ok"
